@@ -1,9 +1,11 @@
 #include "http_server.hpp"
 
+constexpr size_t num_thread = 4;
+
 int main() {
     //setlocale(LC_ALL, "zh_CN.UTF-8");
     try {
-        http_server server;
+        http_server server(num_thread);
         server.add_router("GET", "/", [](const http_parser<>& request, http_writer<>& response) {
             response.write_headerline("HTTP/1.1", "200", "OK");
             response.write_header("Server", "co_http");

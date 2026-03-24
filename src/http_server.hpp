@@ -1,10 +1,11 @@
 #pragma once
 
-#include "http_connection_handler.hpp"
+// #include "http_connection_handler.hpp"
+#include "ThreadPool.hpp"
 
 class http_server {
 public:
-    http_server() {
+    http_server(size_t n) : _router(), _pool(n, _router) {
         _epollfd = -1;
         _sockfd = -1;
         _addrinfo = nullptr;
@@ -32,17 +33,8 @@ public:
             //     std::printf("%d events\n", ready);
             // }
             for (int i = 0; i < ready; ++i) {
-                if (events[i].events & EPOLLIN) {
-                    if (events[i].data.ptr == nullptr) {
-                        accept_new_connection();
-                    } else {
-                        http_connection_handler* handler = static_cast<http_connection_handler*>(events[i].data.ptr);
-                        handler->read_async();
-                    }
-                }
-                if ((events[i].events & EPOLLOUT) && events[i].data.ptr != nullptr) {
-                    http_connection_handler* handler = static_cast<http_connection_handler*>(events[i].data.ptr);
-                    handler->write_async();
+                if ((events[i].events & EPOLLIN) && events[i].data.ptr == nullptr) {
+                    accept_new_connection();
                 }
             }
             // std::printf("%d new events\n", ready);
@@ -66,6 +58,7 @@ public:
             freeaddrinfo(_addrinfo);
         }
     }
+
     ~http_server() {
         do_close();
     }
@@ -74,6 +67,7 @@ private:
     int _sockfd;
     addrinfo* _addrinfo;
     Router _router;
+    ThreadPool _pool;
 
     [[nodiscard]] int create_socket_and_build(const char* name, const char* service) {
         if(_addrinfo != nullptr) {
@@ -114,9 +108,7 @@ private:
         int connid = CHECK_CALL_EXCEPT(EAGAIN, accept, _sockfd, &addr, &len);
         if (connid != -1) {
             std::printf("receive connection request from: %d\n", connid);
-            auto conn_handle = new http_connection_handler(_router);
-            conn_handle->do_init(connid, _epollfd);
-            conn_handle->read_async();
+            _pool.submit(connid);
             return;
         }
     }
