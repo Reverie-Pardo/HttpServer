@@ -6,6 +6,7 @@
 #include "http_parser.hpp"
 #include "http_router.hpp"
 #include "process_error.hpp"
+#include "logger.hpp"
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <queue>
@@ -102,10 +103,8 @@ public:
     void process() {
         _http_writers.push(http_writer<>());
         _router.dispatch(_http_parser, _http_writers.back());
-        // std::cout << _http_parser.headerline() << '\n';
-        //std::cout << _http_parser.headerline_first() << ' ' 
-        //        << _http_parser.headerline_second() << ' '
-        //        << _http_parser.headerline_third() << '\n';
+
+        LOG_INFO(_http_parser.headerline());
     }
 private:
     int _conn;
