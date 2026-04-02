@@ -72,24 +72,39 @@ public:
                 return 0;
             }
             
-            std::string_view to_write = _http_writers.front().buffer();
-            int ret = write(_conn, to_write.data(), to_write.size());
-            if (ret != -1) {
-                if (ret == to_write.size()) {
-                    _http_writers.pop();
+            // std::string_view to_write = _http_writers.front().buffer();
+            // int ret = write(_conn, to_write.data(), to_write.size());
+            // if (ret != -1) {
+            //     if (ret == to_write.size()) {
+            //         _http_writers.pop();
+            //     } else {
+            //         _http_writers.front().change_offset(ret);
+            //         continue;
+            //     }
+            // } else if (errno == EPIPE || errno == ECONNRESET) {
+            //     do_close();
+            //     return -1;
+            // } else if (errno == EWOULDBLOCK || errno == EAGAIN){
+            //     return 0;
+            // } else {
+            //     auto ec = std::error_code(errno, std::system_category());
+            //     std::printf("%s: %s\n", "write", ec.message().c_str());
+            //     throw std::system_error(ec, "write");
+            // }
+            int ret = _http_writers.front().send(_conn);
+            if (ret == -1) {
+                if (errno == EPIPE || errno == ECONNRESET) {
+                    do_close();
+                    return -1;
+                } else if (errno == EWOULDBLOCK || errno == EAGAIN){
+                    return 0;
                 } else {
-                    _http_writers.front().change_offset(ret);
-                    continue;
+                    auto ec = std::error_code(errno, std::system_category());
+                    std::printf("%s: %s\n", "write", ec.message().c_str());
+                    throw std::system_error(ec, "write");
                 }
-            } else if (errno == EPIPE || errno == ECONNRESET) {
-                do_close();
-                return -1;
-            } else if (errno == EWOULDBLOCK || errno == EAGAIN){
-                return 0;
             } else {
-                auto ec = std::error_code(errno, std::system_category());
-                std::printf("%s: %s\n", "write", ec.message().c_str());
-                throw std::system_error(ec, "write");
+                _http_writers.pop();
             }
         }
     }

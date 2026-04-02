@@ -1,54 +1,42 @@
+
 #pragma once
 #include <string>
 #include <string_view>
 #include <memory>
-#include <vector>
 #include <chrono>
 #include "log_sink.hpp"
 
-
 class Logger {
 public:
-    // 单例访问
     static Logger& instance() {
         static Logger inst;
         return inst;
     }
 
-    void init(std::string path, bool async = false) {
+    void init(std::string path, bool async = true, size_t flush_interval_ms = 3000) {
         if (async) {
-            _logsink.reset(new AsyncSink(std::move(path)));
+            _logsink = std::make_unique<AsyncDoubleBufferSink>(
+                std::move(path), flush_interval_ms);
         } else {
-            _logsink.reset(new FileSink(std::move(path)));
+            _logsink = std::make_unique<FileSink>(std::move(path));
         }
     }
 
     void log(LogLevel lv, std::string msg, const char* file, int line) {
-        LogRecord rec {
-            lv, std::move(msg),
-            std::chrono::system_clock::now(),
-            file, line
-        };
-        std::lock_guard<std::mutex> lock(_mutex);
+        if (!_logsink) return;
+        LogRecord rec{lv, std::move(msg), std::chrono::system_clock::now(), file, line};
         _logsink->write(rec);
     }
 
     void log(LogLevel lv, std::string_view msg, const char* file, int line) {
-        std::string message(msg.data(), msg.size());
-        LogRecord rec {
-            lv, std::move(message),
-            std::chrono::system_clock::now(),
-            file, line
-        };
-        std::lock_guard<std::mutex> lock(_mutex);
-        _logsink->write(rec);
+        log(lv, std::string(msg), file, line);
     }
 
 private:
     Logger() = default;
-    //std::vector<std::shared_ptr<LogSink>> _sinks;
+    Logger(const Logger& other) = delete;
+    Logger& operator=(const Logger& other) = delete;
     std::unique_ptr<LogSink> _logsink;
-    std::mutex _mutex;
 };
 
 // 宏：自动填充文件名和行号

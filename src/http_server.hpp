@@ -2,6 +2,7 @@
 
 // #include "http_connection_handler.hpp"
 #include "ThreadPool.hpp"
+#include "logger.hpp"
 
 class http_server {
 public:
@@ -9,6 +10,8 @@ public:
         _epollfd = -1;
         _sockfd = -1;
         _addrinfo = nullptr;
+
+        
     }
 
     void init(const char* name, const char* service) {
